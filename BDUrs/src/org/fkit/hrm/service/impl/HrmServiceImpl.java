@@ -346,6 +346,14 @@ public class HrmServiceImpl implements HrmService{
 	public void removeUserById(Integer id) {
 		userDao.deleteById(id);
 		
+		if (id != null) {
+			try {
+				String redisKey = HrmConstants.REDIS_USER_LOGIN_PREFIX + id;
+				redisUtil.del(redisKey);
+			} catch (Exception e) {
+				System.err.println("从Redis移除用户信息失败: " + e.getMessage());
+			}
+		}
 	}
 	
 	/**
@@ -356,6 +364,17 @@ public class HrmServiceImpl implements HrmService{
 	public void modifyUser(User user) {
 		userDao.update(user);
 		
+		if (user.getId() != null) {
+			try {
+				User fullUser = userDao.selectById(user.getId());
+				if (fullUser != null) {
+					String redisKey = HrmConstants.REDIS_USER_LOGIN_PREFIX + fullUser.getId();
+					redisUtil.set(redisKey, fullUser, 1800);
+				}
+			} catch (Exception e) {
+				System.err.println("Redis缓存更新用户信息失败: " + e.getMessage());
+			}
+		}
 	}
 	
 	/**
@@ -366,6 +385,17 @@ public class HrmServiceImpl implements HrmService{
 	public void addUser(User user) {
 		userDao.save(user);
 		
+		if (user.getId() != null) {
+			try {
+				User fullUser = userDao.selectById(user.getId());
+				if (fullUser != null) {
+					String redisKey = HrmConstants.REDIS_USER_LOGIN_PREFIX + fullUser.getId();
+					redisUtil.set(redisKey, fullUser, 1800);
+				}
+			} catch (Exception e) {
+				System.err.println("Redis缓存新增用户信息失败: " + e.getMessage());
+			}
+		}
 	}
 	
 	/*****************部门服务接口实现*************************************/
