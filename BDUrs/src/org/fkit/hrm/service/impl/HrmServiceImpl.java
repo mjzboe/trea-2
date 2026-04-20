@@ -60,15 +60,26 @@ public class HrmServiceImpl implements HrmService{
 	
 	/**
 	 * 获取当前登录用户
-	 * 优先从Redis缓存获取，其次从UserContextHolder获取
+	 * 优先从Redis缓存获取最新的用户信息，其次从UserContextHolder获取
 	 * @return 当前用户对象
 	 */
 	private User getCurrentUser() {
-		User currentUser = UserContextHolder.getUser();
-		if (currentUser != null) {
-			return currentUser;
+		User contextUser = UserContextHolder.getUser();
+		if (contextUser == null) {
+			return null;
 		}
-		return null;
+		
+		try {
+			String redisKey = HrmConstants.REDIS_USER_LOGIN_PREFIX + contextUser.getId();
+			Object redisUser = redisUtil.get(redisKey);
+			if (redisUser != null && redisUser instanceof User) {
+				return (User) redisUser;
+			}
+		} catch (Exception e) {
+			System.err.println("从Redis获取用户信息失败: " + e.getMessage());
+		}
+		
+		return contextUser;
 	}
 	
 	/**
