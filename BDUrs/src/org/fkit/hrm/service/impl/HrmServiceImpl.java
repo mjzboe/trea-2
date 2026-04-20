@@ -17,6 +17,7 @@ import org.fkit.hrm.domain.Job;
 import org.fkit.hrm.domain.Notice;
 import org.fkit.hrm.domain.User;
 import org.fkit.hrm.service.HrmService;
+import org.fkit.hrm.util.common.RedisUtil;
 import org.fkit.hrm.util.tag.PageModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -52,6 +53,9 @@ public class HrmServiceImpl implements HrmService{
 	@Autowired
 	private DocumentDao documentDao;
 	
+	@Autowired
+	private RedisUtil redisUtil;
+	
 	/*****************用户服务接口实现*************************************/
 	/**
 	 * HrmServiceImpl接口login方法实现
@@ -60,8 +64,12 @@ public class HrmServiceImpl implements HrmService{
 	@Transactional(readOnly=true)
 	@Override
 	public User login(String loginname, String password) {
-//		System.out.println("HrmServiceImpl login -- >>");
-		return userDao.selectByLoginnameAndPassword(loginname, password);
+		User user = userDao.selectByLoginnameAndPassword(loginname, password);
+		if (user != null) {
+			String redisKey = "user:login:" + user.getId();
+			redisUtil.set(redisKey, user, 1800);
+		}
+		return user;
 	}
 
 	/**
