@@ -17,7 +17,9 @@ import org.fkit.hrm.domain.Job;
 import org.fkit.hrm.domain.Notice;
 import org.fkit.hrm.domain.User;
 import org.fkit.hrm.service.HrmService;
+import org.fkit.hrm.util.common.HrmConstants;
 import org.fkit.hrm.util.common.RedisUtil;
+import org.fkit.hrm.util.common.UserContextHolder;
 import org.fkit.hrm.util.tag.PageModel;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -56,6 +58,225 @@ public class HrmServiceImpl implements HrmService{
 	@Autowired
 	private RedisUtil redisUtil;
 	
+	/**
+	 * 获取当前登录用户
+	 * 优先从Redis缓存获取最新的用户信息，其次从UserContextHolder获取
+	 * @return 当前用户对象
+	 */
+	private User getCurrentUser() {
+		User contextUser = UserContextHolder.getUser();
+		if (contextUser == null) {
+			return null;
+		}
+		
+		try {
+			String redisKey = HrmConstants.REDIS_USER_LOGIN_PREFIX + contextUser.getId();
+			Object redisUser = redisUtil.get(redisKey);
+			if (redisUser != null && redisUser instanceof User) {
+				return (User) redisUser;
+			}
+		} catch (Exception e) {
+			System.err.println("从Redis获取用户信息失败: " + e.getMessage());
+		}
+		
+		return contextUser;
+	}
+	
+	/**
+	 * 获取当前用户的角色
+	 * @return 角色值，如果未登录或无角色则返回null
+	 */
+	private Integer getCurrentUserRole() {
+		User currentUser = getCurrentUser();
+		if (currentUser != null && currentUser.getRole() != null) {
+			return currentUser.getRole();
+		}
+		return null;
+	}
+	
+	/**
+	 * 获取当前用户所在的部门ID
+	 * 部门领导和普通员工需要通过employeeId查询Employee获取部门信息
+	 * @return 部门ID，如果无法获取则返回null
+	 */
+	private Integer getCurrentUserDeptId() {
+		User currentUser = getCurrentUser();
+		if (currentUser == null || currentUser.getEmployeeId() == null) {
+			return null;
+		}
+		Employee employee = employeeDao.selectById(currentUser.getEmployeeId());
+		if (employee != null && employee.getDept() != null) {
+			return employee.getDept().getId();
+		}
+		return null;
+	}
+	
+	/**
+	 * 检查是否是管理员
+	 * @return true如果是管理员
+	 */
+	private boolean isAdmin() {
+		Integer role = getCurrentUserRole();
+		return role != null && role == HrmConstants.ROLE_ADMIN;
+	}
+	
+	/**
+	 * 检查是否是部门领导
+	 * @return true如果是部门领导
+	 */
+	private boolean isDeptLeader() {
+		Integer role = getCurrentUserRole();
+		return role != null && role == HrmConstants.ROLE_DEPT_LEADER;
+	}
+	
+	/**
+	 * 检查是否是普通员工
+	 * @return true如果是普通员工
+	 */
+	private boolean isEmployee() {
+		Integer role = getCurrentUserRole();
+		return role != null && role == HrmConstants.ROLE_EMPLOYEE;
+	}
+	
+	/**
+	 * 应用员工查询权限过滤
+	 * 根据当前用户角色修改查询条件
+	 * @param employee 查询条件
+	 */
+	private void applyEmployeePermissionFilter(Employee employee) {
+		User currentUser = getCurrentUser();
+		if (currentUser == null) {
+			return;
+		}
+		
+		if (isAdmin()) {
+			return;
+		} else if (isDeptLeader()) {
+			Integer deptId = getCurrentUserDeptId();
+			if (deptId != null) {
+				if (employee.getDept() == null) {
+					employee.setDept(new Dept());
+				}
+				employee.getDept().setId(deptId);
+			}
+		} else if (isEmployee()) {
+			Integer employeeId = currentUser.getEmployeeId();
+			if (employeeId != null) {
+				employee.setId(employeeId);
+			}
+		}
+	}
+	
+	/**
+	 * 检查单个员工查询权限
+	 * @param employeeId 要查询的员工ID
+	 * @return true如果有权限查询
+	 */
+	private boolean checkEmployeePermission(Integer employeeId) {
+		if (employeeId == null) {
+			return false;
+		}
+		
+		User currentUser = getCurrentUser();
+		if (currentUser == null) {
+			return false;
+		}
+		
+		if (isAdmin()) {
+			return true;
+		} else if (isDeptLeader()) {
+			Employee targetEmployee = employeeDao.selectById(employeeId);
+			if (targetEmployee == null || targetEmployee.getDept() == null) {
+				return false;
+			}
+			Integer currentDeptId = getCurrentUserDeptId();
+			return currentDeptId != null && currentDeptId.equals(targetEmployee.getDept().getId());
+		} else if (isEmployee()) {
+			Integer currentEmployeeId = currentUser.getEmployeeId();
+			return currentEmployeeId != null && currentEmployeeId.equals(employeeId);
+		}
+		
+		return false;
+	}
+	
+	/**
+	 * 应用用户查询权限过滤
+	 * 根据当前用户角色修改查询条件
+	 * @param user 查询条件
+	 */
+	private void applyUserPermissionFilter(User user) {
+		User currentUser = getCurrentUser();
+		if (currentUser == null) {
+			return;
+		}
+		
+		if (isAdmin()) {
+			return;
+		} else if (isDeptLeader()) {
+			return;
+		} else if (isEmployee()) {
+			user.setId(currentUser.getId());
+		}
+	}
+	
+	/**
+	 * 过滤用户列表，只保留本部门员工关联的用户
+	 * @param users 原始用户列表
+	 * @param deptId 部门ID
+	 * @return 过滤后的用户列表
+	 */
+	private List<User> filterUsersByDept(List<User> users, Integer deptId) {
+		if (users == null || users.isEmpty() || deptId == null) {
+			return users;
+		}
+		
+		return users.stream()
+			.filter(user -> {
+				if (user.getEmployeeId() == null) {
+					return false;
+				}
+				Employee employee = employeeDao.selectById(user.getEmployeeId());
+				return employee != null && employee.getDept() != null 
+					&& deptId.equals(employee.getDept().getId());
+			})
+			.collect(java.util.stream.Collectors.toList());
+	}
+	
+	/**
+	 * 检查单个用户查询权限
+	 * @param userId 要查询的用户ID
+	 * @return true如果有权限查询
+	 */
+	private boolean checkUserPermission(Integer userId) {
+		if (userId == null) {
+			return false;
+		}
+		
+		User currentUser = getCurrentUser();
+		if (currentUser == null) {
+			return false;
+		}
+		
+		if (isAdmin()) {
+			return true;
+		} else if (isDeptLeader()) {
+			User targetUser = userDao.selectById(userId);
+			if (targetUser == null || targetUser.getEmployeeId() == null) {
+				return false;
+			}
+			Employee targetEmployee = employeeDao.selectById(targetUser.getEmployeeId());
+			if (targetEmployee == null || targetEmployee.getDept() == null) {
+				return false;
+			}
+			Integer currentDeptId = getCurrentUserDeptId();
+			return currentDeptId != null && currentDeptId.equals(targetEmployee.getDept().getId());
+		} else if (isEmployee()) {
+			return currentUser.getId() != null && currentUser.getId().equals(userId);
+		}
+		
+		return false;
+	}
+	
 	/*****************用户服务接口实现*************************************/
 	/**
 	 * HrmServiceImpl接口login方法实现
@@ -83,6 +304,8 @@ public class HrmServiceImpl implements HrmService{
 	@Transactional(readOnly=true)
 	@Override
 	public List<User> findUser(User user,PageModel pageModel) {
+		applyUserPermissionFilter(user);
+		
 		/** 当前需要分页的总数据条数  */
 		Map<String,Object> params = new HashMap<>();
 		params.put("user", user);
@@ -93,6 +316,11 @@ public class HrmServiceImpl implements HrmService{
 		    params.put("pageModel", pageModel);
 	    }
 		List<User> users = userDao.selectByPage(params);
+		
+		if (isDeptLeader()) {
+			Integer deptId = getCurrentUserDeptId();
+			users = filterUsersByDept(users, deptId);
+		}
 		 
 		return users;
 	}
@@ -104,6 +332,9 @@ public class HrmServiceImpl implements HrmService{
 	@Transactional(readOnly=true)
 	@Override
 	public User findUserById(Integer id) {
+		if (!checkUserPermission(id)) {
+			return null;
+		}
 		return userDao.selectById(id);
 	}
 	
@@ -215,6 +446,8 @@ public class HrmServiceImpl implements HrmService{
 	@Transactional(readOnly=true)
 	@Override
 	public List<Employee> findEmployee(Employee employee,PageModel pageModel) {
+		applyEmployeePermissionFilter(employee);
+		
 		/** 当前需要分页的总数据条数  */
 		Map<String,Object> params = new HashMap<>();
 		params.put("employee", employee);
@@ -245,7 +478,9 @@ public class HrmServiceImpl implements HrmService{
 	@Transactional(readOnly=true)
 	@Override
 	public Employee findEmployeeById(Integer id) {
-		
+		if (!checkEmployeePermission(id)) {
+			return null;
+		}
 		return employeeDao.selectById(id);
 	}
 	

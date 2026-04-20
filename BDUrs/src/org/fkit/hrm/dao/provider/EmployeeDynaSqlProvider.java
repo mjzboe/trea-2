@@ -19,6 +19,9 @@ public class EmployeeDynaSqlProvider {
 				FROM(EMPLOYEETABLE);
 				if(params.get("employee") != null){
 					Employee employee = (Employee)params.get("employee");
+					if(employee.getId() != null && employee.getId() != 0){
+						WHERE(" id = #{employee.id} ");
+					}
 					if(employee.getDept() != null && employee.getDept().getId() != null && employee.getDept().getId() != 0){
 						WHERE(" DEPT_ID = #{employee.dept.id} ");
 					}
@@ -55,6 +58,9 @@ public class EmployeeDynaSqlProvider {
 				FROM(EMPLOYEETABLE);
 				if(params.get("employee") != null){
 					Employee employee = (Employee)params.get("employee");
+					if(employee.getId() != null && employee.getId() != 0){
+						WHERE(" id = #{employee.id} ");
+					}
 					if(employee.getDept() != null && employee.getDept().getId() != null && employee.getDept().getId() != 0){
 						WHERE(" DEPT_ID = #{employee.dept.id} ");
 					}

@@ -11,6 +11,8 @@ public class User implements Serializable {
 	private String loginname;	// 登录名
 	private String password;	// 密码
 	private Integer status;		// 状态
+	private Integer role;		// 角色：1-管理员，2-部门领导，3-普通员工
+	private Integer employeeId;	// 关联的员工ID
 	private Date createDate;	// 建档日期
 	// 无参数构造器
 	public User() {
@@ -49,6 +51,18 @@ public class User implements Serializable {
 	public void setStatus(Integer status) {
 		this.status = status;
 	}
+	public Integer getRole() {
+		return role;
+	}
+	public void setRole(Integer role) {
+		this.role = role;
+	}
+	public Integer getEmployeeId() {
+		return employeeId;
+	}
+	public void setEmployeeId(Integer employeeId) {
+		this.employeeId = employeeId;
+	}
 	public Date getCreateDate() {
 		return createDate;
 	}
@@ -59,8 +73,10 @@ public class User implements Serializable {
 	public String toString() {
 		return "User [id=" + id + ", username=" + username + ", loginname="
 				+ loginname + ", password=" + password + ", status=" + status
+				+ ", role=" + role + ", employeeId=" + employeeId 
 				+ ", createDate=" + createDate + "]";
 	}
+	
 	
 	
 }

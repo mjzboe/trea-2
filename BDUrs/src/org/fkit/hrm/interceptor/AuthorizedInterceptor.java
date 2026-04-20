@@ -4,6 +4,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.fkit.hrm.domain.User;
 import org.fkit.hrm.util.common.HrmConstants;
+import org.fkit.hrm.util.common.UserContextHolder;
 import org.springframework.web.servlet.HandlerInterceptor;
 import org.springframework.web.servlet.ModelAndView;
 
@@ -23,7 +24,7 @@ public class AuthorizedInterceptor  implements HandlerInterceptor {
 	public void afterCompletion(HttpServletRequest request,
 			HttpServletResponse response, Object handler, Exception exception)
 			throws Exception {
-		
+		UserContextHolder.clear();
 	}
 
 	 /** 
@@ -67,6 +68,7 @@ public class AuthorizedInterceptor  implements HandlerInterceptor {
         		return flag;
         	}else{
         		 flag = true;
+        		 UserContextHolder.setUser(user);
         	}
         }
         return flag;

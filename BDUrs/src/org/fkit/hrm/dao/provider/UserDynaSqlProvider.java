@@ -17,6 +17,12 @@ public class UserDynaSqlProvider {
 				FROM(USERTABLE);
 				if(params.get("user") != null){
 					User user = (User)params.get("user");
+					if(user.getId() != null && user.getId() != 0){
+						WHERE(" id = #{user.id} ");
+					}
+					if(user.getEmployeeId() != null && user.getEmployeeId() != 0){
+						WHERE(" employee_id = #{user.employeeId} ");
+					}
 					if(user.getUsername() != null && !user.getUsername().equals("")){
 						WHERE("  username LIKE CONCAT ('%',#{user.username},'%') ");
 					}
@@ -41,6 +47,12 @@ public class UserDynaSqlProvider {
 				FROM(USERTABLE);
 				if(params.get("user") != null){
 					User user = (User)params.get("user");
+					if(user.getId() != null && user.getId() != 0){
+						WHERE(" id = #{user.id} ");
+					}
+					if(user.getEmployeeId() != null && user.getEmployeeId() != 0){
+						WHERE(" employee_id = #{user.employeeId} ");
+					}
 					if(user.getUsername() != null && !user.getUsername().equals("")){
 						WHERE(" username LIKE CONCAT ('%',#{user.username},'%') ");
 					}
