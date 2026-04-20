@@ -213,10 +213,33 @@ public class HrmServiceImpl implements HrmService{
 		if (isAdmin()) {
 			return;
 		} else if (isDeptLeader()) {
-			user.setId(null);
+			return;
 		} else if (isEmployee()) {
 			user.setId(currentUser.getId());
 		}
+	}
+	
+	/**
+	 * 过滤用户列表，只保留本部门员工关联的用户
+	 * @param users 原始用户列表
+	 * @param deptId 部门ID
+	 * @return 过滤后的用户列表
+	 */
+	private List<User> filterUsersByDept(List<User> users, Integer deptId) {
+		if (users == null || users.isEmpty() || deptId == null) {
+			return users;
+		}
+		
+		return users.stream()
+			.filter(user -> {
+				if (user.getEmployeeId() == null) {
+					return false;
+				}
+				Employee employee = employeeDao.selectById(user.getEmployeeId());
+				return employee != null && employee.getDept() != null 
+					&& deptId.equals(employee.getDept().getId());
+			})
+			.collect(java.util.stream.Collectors.toList());
 	}
 	
 	/**
@@ -293,6 +316,11 @@ public class HrmServiceImpl implements HrmService{
 		    params.put("pageModel", pageModel);
 	    }
 		List<User> users = userDao.selectByPage(params);
+		
+		if (isDeptLeader()) {
+			Integer deptId = getCurrentUserDeptId();
+			users = filterUsersByDept(users, deptId);
+		}
 		 
 		return users;
 	}
