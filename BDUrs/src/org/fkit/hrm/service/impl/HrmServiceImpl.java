@@ -288,7 +288,7 @@ public class HrmServiceImpl implements HrmService{
 		User user = userDao.selectByLoginnameAndPassword(loginname, password);
 		if (user != null) {
 			try {
-				String redisKey = "user:login:" + user.getId();
+				String redisKey = HrmConstants.REDIS_USER_LOGIN_PREFIX + user.getId();
 				redisUtil.set(redisKey, user, 1800);
 			} catch (Exception e) {
 				System.err.println("Redis缓存用户信息失败: " + e.getMessage());
