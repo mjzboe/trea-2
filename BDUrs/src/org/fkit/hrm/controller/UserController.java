@@ -14,6 +14,8 @@ import org.fkit.hrm.service.HrmService;
 import org.fkit.hrm.util.common.ExcelExportUtil;
 import org.fkit.hrm.util.common.HrmConstants;
 import org.fkit.hrm.util.tag.PageModel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Controller;
@@ -28,6 +30,8 @@ import org.springframework.web.servlet.ModelAndView;
  * */
 @Controller
 public class UserController {
+	
+	private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 	
 	/**
 	 * 自动注入UserService
@@ -177,6 +181,7 @@ public class UserController {
 			try{
 				userIds.add(Integer.parseInt(id));
 			}catch(NumberFormatException e){
+				logger.warn("无效的用户资源ID: " + id);
 				continue;
 			}
 		}
