@@ -28,33 +28,31 @@ public class ExcelExportUtil {
 	private static final int COLUMN_WIDTH = 20;
 	
 	public static byte[] exportUsersToExcel(List<UserExportDTO> users) throws IOException {
-		Workbook workbook = createWorkbook(users, "用户列表");
-		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-		workbook.write(bos);
-		workbook.close();
-		return bos.toByteArray();
+		try (Workbook workbook = createWorkbook(users, "用户列表")) {
+			ByteArrayOutputStream bos = new ByteArrayOutputStream();
+			workbook.write(bos);
+			return bos.toByteArray();
+		}
 	}
 	
 	public static byte[] exportUsersToZip(Map<String, List<UserExportDTO>> deptUserMap) throws IOException {
 		ByteArrayOutputStream bos = new ByteArrayOutputStream();
-		ZipOutputStream zos = new ZipOutputStream(bos);
-		
-		for (Map.Entry<String, List<UserExportDTO>> entry : deptUserMap.entrySet()) {
-			String deptName = entry.getKey();
-			List<UserExportDTO> users = entry.getValue();
-			
-			Workbook workbook = createWorkbook(users, deptName + "用户列表");
-			ByteArrayOutputStream excelBos = new ByteArrayOutputStream();
-			workbook.write(excelBos);
-			workbook.close();
-			
-			ZipEntry zipEntry = new ZipEntry(deptName + "用户列表.xlsx");
-			zos.putNextEntry(zipEntry);
-			zos.write(excelBos.toByteArray());
-			zos.closeEntry();
+		try (ZipOutputStream zos = new ZipOutputStream(bos)) {
+			for (Map.Entry<String, List<UserExportDTO>> entry : deptUserMap.entrySet()) {
+				String deptName = entry.getKey();
+				List<UserExportDTO> users = entry.getValue();
+				
+				try (Workbook workbook = createWorkbook(users, deptName + "用户列表")) {
+					ByteArrayOutputStream excelBos = new ByteArrayOutputStream();
+					workbook.write(excelBos);
+					
+					ZipEntry zipEntry = new ZipEntry(deptName + "用户列表.xlsx");
+					zos.putNextEntry(zipEntry);
+					zos.write(excelBos.toByteArray());
+					zos.closeEntry();
+				}
+			}
 		}
-		
-		zos.close();
 		return bos.toByteArray();
 	}
 	
