@@ -219,7 +219,8 @@ public class UserController {
 				response.getOutputStream().flush();
 			}
 		}catch(IOException e){
-			e.printStackTrace();
+			logger.error("导出文件失败", e);
+			response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
 		}
 	}
 	
