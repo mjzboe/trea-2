@@ -1,9 +1,17 @@
 package org.fkit.hrm.controller;
 
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import org.fkit.hrm.domain.User;
+import org.fkit.hrm.dto.UserExportDTO;
 import org.fkit.hrm.service.HrmService;
+import org.fkit.hrm.util.common.ExcelExportUtil;
 import org.fkit.hrm.util.common.HrmConstants;
 import org.fkit.hrm.util.tag.PageModel;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -150,6 +158,98 @@ public class UserController {
 		}
 		// 返回
 		return mv;
+	}
+	
+	/**
+	 * 处理导出用户请求
+	 * @param String ids 需要导出的用户id字符串
+	 * @param HttpServletResponse response
+	 * */
+	@RequestMapping(value="/user/exportUser")
+	 public void exportUser(String ids, HttpServletResponse response){
+		if(ids == null || ids.trim().equals("")){
+			return;
+		}
+		
+		String[] idArray = ids.split(",");
+		List<Integer> userIds = new ArrayList<>();
+		for(String id : idArray){
+			try{
+				userIds.add(Integer.parseInt(id));
+			}catch(NumberFormatException e){
+				continue;
+			}
+		}
+		
+		if(userIds.isEmpty()){
+			return;
+		}
+		
+		List<UserExportDTO> users = hrmService.findUsersForExport(userIds);
+		if(users == null || users.isEmpty()){
+			return;
+		}
+		
+		try{
+			boolean allSameDept = checkAllSameDept(users);
+			
+			if(allSameDept){
+				byte[] excelData = ExcelExportUtil.exportUsersToExcel(users);
+				String fileName = ExcelExportUtil.generateExcelFileName();
+				
+				response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+				response.setHeader("Content-Disposition", "attachment;filename=" + URLEncoder.encode(fileName, "UTF-8"));
+				response.setContentLength(excelData.length);
+				response.getOutputStream().write(excelData);
+				response.getOutputStream().flush();
+			}else{
+				Map<String, List<UserExportDTO>> deptUserMap = groupUsersByDept(users);
+				byte[] zipData = ExcelExportUtil.exportUsersToZip(deptUserMap);
+				String fileName = ExcelExportUtil.generateZipFileName();
+				
+				response.setContentType("application/zip");
+				response.setHeader("Content-Disposition", "attachment;filename=" + URLEncoder.encode(fileName, "UTF-8"));
+				response.setContentLength(zipData.length);
+				response.getOutputStream().write(zipData);
+				response.getOutputStream().flush();
+			}
+		}catch(IOException e){
+			e.printStackTrace();
+		}
+	}
+	
+	private boolean checkAllSameDept(List<UserExportDTO> users){
+		if(users == null || users.isEmpty()){
+			return true;
+		}
+		
+		Integer firstDeptId = users.get(0).getDeptId();
+		for(UserExportDTO user : users){
+			Integer deptId = user.getDeptId();
+			if((firstDeptId == null && deptId != null) || 
+			   (firstDeptId != null && !firstDeptId.equals(deptId))){
+				return false;
+			}
+		}
+		return true;
+	}
+	
+	private Map<String, List<UserExportDTO>> groupUsersByDept(List<UserExportDTO> users){
+		Map<String, List<UserExportDTO>> deptUserMap = new LinkedHashMap<>();
+		
+		for(UserExportDTO user : users){
+			String deptName = user.getDeptName();
+			if(deptName == null || deptName.trim().equals("")){
+				deptName = "未分配部门";
+			}
+			
+			if(!deptUserMap.containsKey(deptName)){
+				deptUserMap.put(deptName, new ArrayList<>());
+			}
+			deptUserMap.get(deptName).add(user);
+		}
+		
+		return deptUserMap;
 	}
 	
 }

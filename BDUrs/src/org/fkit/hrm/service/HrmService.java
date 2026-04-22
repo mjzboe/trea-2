@@ -8,6 +8,7 @@ import org.fkit.hrm.domain.Employee;
 import org.fkit.hrm.domain.Job;
 import org.fkit.hrm.domain.Notice;
 import org.fkit.hrm.domain.User;
+import org.fkit.hrm.dto.UserExportDTO;
 import org.fkit.hrm.util.tag.PageModel;
 
 /**   
@@ -220,6 +221,13 @@ public interface HrmService {
 	 * @param Document 公告对象
 	 * */
 	void modifyDocument(Document document);
+	
+	/**
+	 * 根据用户ID列表获取导出用户数据
+	 * @param userIds 用户ID列表
+	 * @return 用户导出数据列表
+	 * */
+	List<UserExportDTO> findUsersForExport(List<Integer> userIds);
 	
 	
 }
