@@ -57,6 +57,41 @@
 	 			   });
 	 		   }
 	 	   })
+	 	   
+	 	   /** 导出用户绑定点击事件 */
+	 	   $("#export").click(function(){
+	 		   /** 获取到用户选中的复选框  */
+	 		   var checkedBoxs = boxs.filter(":checked");
+	 		   if(checkedBoxs.length < 1){
+	 			   $.ligerDialog.error("请选择一个需要导出的用户！");
+	 		   }else{
+	 			   /** 得到用户选中的所有的需要导出的ids */
+	 			   var ids = checkedBoxs.map(function(){
+	 				   return this.value;
+	 			   })
+	 			   
+	 			   // 发送导出请求
+	 			   window.location = "${ctx }/user/exportUser?ids=" + ids.get();
+	 		   }
+	 	   })
+	 	   
+	 	   /** 全选/取消全选 */
+	 	   $("#checkAll").click(function(){
+	 		   var isChecked = $(this).prop("checked");
+	 		   boxs.prop("checked", isChecked);
+	 	   })
+	 	   
+	 	   /** 单个选中/取消时更新全选状态 */
+	 	   boxs.click(function(){
+	 		   var allChecked = true;
+	 		   boxs.each(function(){
+	 			   if(!$(this).prop("checked")){
+	 				   allChecked = false;
+	 				   return false;
+	 			   }
+	 		   })
+	 		   $("#checkAll").prop("checked", allChecked);
+	 	   })
 	    })
 	</script>
 </head>
@@ -86,6 +121,7 @@
 					    	用户状态：<input type="text" name="status">
 					    	 <input type="submit" value="搜索"/>
 					    	<input id="delete" type="button" value="删除"/>
+					    	<input id="export" type="button" value="导出Excel"/>
 					    </td>
 					  </tr>
 					</table>

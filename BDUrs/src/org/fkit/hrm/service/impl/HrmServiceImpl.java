@@ -1,5 +1,6 @@
 package org.fkit.hrm.service.impl;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +17,7 @@ import org.fkit.hrm.domain.Employee;
 import org.fkit.hrm.domain.Job;
 import org.fkit.hrm.domain.Notice;
 import org.fkit.hrm.domain.User;
+import org.fkit.hrm.dto.UserExportDTO;
 import org.fkit.hrm.service.HrmService;
 import org.fkit.hrm.util.common.HrmConstants;
 import org.fkit.hrm.util.common.RedisUtil;
@@ -732,6 +734,71 @@ public class HrmServiceImpl implements HrmService{
 	public Document findDocumentById(Integer id) {
 		
 		return documentDao.selectById(id);
+	}
+	
+	/**
+	 * HrmService接口findUsersForExport方法实现
+	 * @see { HrmService }
+	 * */
+	@Transactional(readOnly=true)
+	@Override
+	public List<UserExportDTO> findUsersForExport(List<Integer> userIds) {
+		List<UserExportDTO> result = new ArrayList<>();
+		
+		if (userIds == null || userIds.isEmpty()) {
+			return result;
+		}
+		
+		for (Integer userId : userIds) {
+			if (!checkUserPermission(userId)) {
+				continue;
+			}
+			
+			User user = userDao.selectById(userId);
+			if (user == null) {
+				continue;
+			}
+			
+			String username = user.getUsername();
+			String roleName = getRoleName(user.getRole());
+			String deptName = "";
+			String jobName = "";
+			Integer deptId = null;
+			
+			if (user.getEmployeeId() != null) {
+				Employee employee = employeeDao.selectById(user.getEmployeeId());
+				if (employee != null) {
+					if (employee.getDept() != null) {
+						deptName = employee.getDept().getName();
+						deptId = employee.getDept().getId();
+					}
+					if (employee.getJob() != null) {
+						jobName = employee.getJob().getName();
+					}
+				}
+			}
+			
+			UserExportDTO dto = new UserExportDTO(username, deptName, jobName, roleName, deptId);
+			result.add(dto);
+		}
+		
+		return result;
+	}
+	
+	private String getRoleName(Integer role) {
+		if (role == null) {
+			return "未知";
+		}
+		switch (role) {
+			case HrmConstants.ROLE_ADMIN:
+				return "管理员";
+			case HrmConstants.ROLE_DEPT_LEADER:
+				return "部门领导";
+			case HrmConstants.ROLE_EMPLOYEE:
+				return "普通员工";
+			default:
+				return "未知";
+		}
 	}
 
 	
